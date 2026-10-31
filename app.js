@@ -1,4 +1,4 @@
-/* ARCANA LOTTO — static client v1.0. No database, network, tracking, or external libraries. */
+/* ARCANA LOTTO — static client v1.1. No database, network, tracking, or external libraries. */
 (() => {
   'use strict';
   const stats = window.TAROT_LOTTO_STATS;
@@ -144,12 +144,28 @@
       return `<div class="chosen-slot picked" aria-label="${role}: ${safe(c.name)}"><span class="slot-n">0${i+1}</span><span class="chosen-glyph" aria-hidden="true">${c.glyph}</span><span class="chosen-name">${safe(c.name)}</span><small>${role}</small></div>`;
     }).join('');
   }
+  function updateDeckScrollUI(){
+    const grid=$('deckGrid'); const prev=$('deckPrev'); const next=$('deckNext');
+    if(!grid||!prev||!next||$('deckArea').classList.contains('hidden')) return;
+    const max=Math.max(0, grid.scrollWidth-grid.clientWidth-2);
+    const atStart=grid.scrollLeft<=2;
+    const atEnd=grid.scrollLeft>=max;
+    prev.disabled=atStart; next.disabled=atEnd;
+    prev.classList.toggle('is-disabled',atStart); next.classList.toggle('is-disabled',atEnd);
+  }
+  function scrollDeck(direction){
+    const grid=$('deckGrid'); if(!grid) return;
+    const amount=Math.max(180, Math.floor(grid.clientWidth*0.72));
+    const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    grid.scrollBy({left: amount*direction, behavior: reduce?'auto':'smooth'});
+  }
   function renderDeck(){
     const done=state.picks.length===3;
     $('deckArea').classList.toggle('hidden',done);
     if(done)return;
-    $('deckRemain').textContent=`${22-state.picks.length}장 중 선택`;
-    $('deckGrid').innerHTML=state.deck.slice(0,6).map((id,i)=>`<button type="button" class="deck-card" data-pick="${id}" aria-label="뒷면 카드 ${i+1} 선택"></button>`).join('');
+    $('deckRemain').textContent=`남은 카드 ${state.deck.length}장`;
+    $('deckGrid').setAttribute('aria-label', `남아 있는 뒤집힌 타로카드 ${state.deck.length}장. 좌우로 스크롤할 수 있습니다.`);
+    $('deckGrid').innerHTML=state.deck.map((id,i)=>`<button type="button" class="deck-card" data-pick="${id}" aria-label="펼쳐진 카드 ${i+1}번 선택"></button>`).join('');
     $('stepNum').textContent=String(state.picks.length+1).padStart(2,'0');
     $('stepHeading').textContent=['첫 번째 카드를 선택하세요','두 번째 카드를 선택하세요','마지막 카드를 선택하세요'][state.picks.length];
     $('stepDesc').textContent=[
@@ -157,6 +173,7 @@
       '두 번째 카드는 번호를 고르는 방식을 결정합니다.',
       '세 번째 카드는 조합의 형태를 결정합니다.'
     ][state.picks.length];
+    requestAnimationFrame(updateDeckScrollUI);
   }
   function renderStrategy(){
     const node=$('strategyReveal');
@@ -289,6 +306,10 @@
   document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{state.mode=b.dataset.mode;state.results=[];state.generation=null;renderAll();}));
   document.querySelectorAll('[data-count]').forEach(b=>b.addEventListener('click',()=>{state.count=Number(b.dataset.count);renderControl();}));
   $('reshuffleBtn').addEventListener('click',reseed);
+  $('deckPrev').addEventListener('click',()=>scrollDeck(-1));
+  $('deckNext').addEventListener('click',()=>scrollDeck(1));
+  $('deckGrid').addEventListener('scroll',updateDeckScrollUI,{passive:true});
+  window.addEventListener('resize',updateDeckScrollUI);
   $('generateBtn').addEventListener('click',generate);
   $('redoBtn').addEventListener('click',generate);
   $('copyBtn').addEventListener('click',async()=>showToast(await copyText(resultText())?'번호를 복사했어요.':'복사를 지원하지 않는 환경입니다.'));

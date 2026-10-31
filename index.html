@@ -48,7 +48,12 @@
       </div>
       <div id="deckArea" class="deck-area">
         <div class="deck-head"><span>마음이 가는 카드를 골라보세요</span><span id="deckRemain">22장 중 선택</span></div>
-        <div id="deckGrid" class="deck-grid" aria-label="뒤집힌 타로카드 여섯 장"></div>
+        <div class="deck-scroll-head" aria-hidden="false">
+          <button id="deckPrev" class="deck-shift is-disabled" type="button" aria-label="왼쪽으로 카드 더 보기" disabled>◀</button>
+          <span class="deck-scroll-copy">좌우로 넘겨 보세요</span>
+          <button id="deckNext" class="deck-shift" type="button" aria-label="오른쪽으로 카드 더 보기">▶</button>
+        </div>
+        <div id="deckGrid" class="deck-grid" aria-label="뒤집힌 타로카드 22장"></div>
       </div>
       <div id="strategyReveal" class="strategy-reveal hidden" aria-live="polite"></div>
     </section>
