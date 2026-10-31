@@ -1,4 +1,4 @@
-/* ARCANA LOTTO — static client v1.1. No database, network, tracking, or external libraries. */
+/* ARCANA LOTTO — static client v1.3.1. No database, network, tracking, or external libraries. */
 (() => {
   'use strict';
   const stats = window.TAROT_LOTTO_STATS;
@@ -12,6 +12,29 @@
   const src = ['wordpress', 'googlesites', 'naver'].includes(args.get('src')) ? args.get('src') : 'default';
   if (args.get('embed') === '1') document.body.classList.add('is-embed');
   const statsVersion = stats.version || `through-${stats.lastRound}`;
+  // 표시용 추천 대상 회차: 1248회 추첨 2026-10-31(토) 20:35 KST를 기준으로
+  // 7일마다 +1. 당첨 이력/통계 파일은 갱신하지 않습니다.
+  // 사용자가 새로고침하면 현지 시간대와 무관하게 이번 추천 대상 회차가 계산됩니다.
+  function recommendationRound(nowMs = Date.now()) {
+    const reference = Date.UTC(2026, 9, 31, 11, 35); // 한국시간 2026-10-31 20:35
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+    const weeksPassed = Math.max(0, Math.floor((nowMs - reference) / weekMs) + 1);
+    return 1248 + weeksPassed;
+  }
+  const previousWinners = window.TAROT_LOTTO_HISTORY;
+  const winnersByKey = new Map();
+  const historyReady = Boolean(previousWinners && Array.isArray(previousWinners.draws) && previousWinners.draws.length === previousWinners.drawCount && previousWinners.fromRound === 1 && previousWinners.toRound === stats.lastRound);
+  if(historyReady){
+    for(const row of previousWinners.draws){
+      if(!Array.isArray(row)||row.length!==7) continue;
+      const [round,...numbers]=row;
+      if(!Number.isInteger(round)||numbers.some(n=>!Number.isInteger(n)||n<1||n>45)||new Set(numbers).size!==6) continue;
+      const key=numbers.slice().sort((a,b)=>a-b).map(n=>String(n).padStart(2,'0')).join('-');
+      if(!winnersByKey.has(key)) winnersByKey.set(key,[]);
+      winnersByKey.get(key).push(round);
+    }
+  }
+  const historyAvailable = historyReady && previousWinners.draws.length === Array.from(winnersByKey.values()).reduce((sum,rounds)=>sum+rounds.length,0);
   const keyHistory = 'arcana-lotto-saved-v1';
   const roleNames = ['시작', '흐름', '완성'];
   const slotDescriptions = ['번호의 성향', '선택 방식', '조합의 형태'];
@@ -124,6 +147,20 @@
     return true;
   }
   function keyFor(numbers){return numbers.map(n=>String(n).padStart(2,'0')).join('-');}
+  // Only an exact match with all SIX main winning numbers is treated as a past 1st-prize combination.
+  // This is a historical lookup, NOT a filter or a predictor for future draws.
+  function lookupPreviousWinner(numbers){
+    if(!Array.isArray(numbers)||numbers.length!==6||numbers.some(n=>!Number.isInteger(n)||n<1||n>45)||new Set(numbers).size!==6) throw new Error('서로 다른 1~45 정수 6개가 필요합니다.');
+    const rounds=historyAvailable ? (winnersByKey.get(keyFor([...numbers].sort((a,b)=>a-b)))||[]) : [];
+    return {checked:historyAvailable, exactMatch:rounds.length>0, rounds:[...rounds].sort((a,b)=>a-b), throughRound:historyAvailable?previousWinners.toRound:null};
+  }
+  function historicalBadge(numbers){
+    const match=lookupPreviousWinner(numbers);
+    // Show a result ONLY when the six numbers exactly match a prior first-prize draw.
+    // Missing history and non-matches never add UI text.
+    if(!match.exactMatch) return '';
+    return `<div class="history-badge matched">과거 1등 당첨번호와 동일 · ${match.rounds.map(r=>`제${r}회`).join(', ')}</div>`;
+  }
   function generateSets(mode,picks,count){
     const keys=new Set();const result=[];const limit=count*450;
     for(let attempt=0;attempt<limit&&result.length<count;attempt++){
@@ -190,6 +227,7 @@
   function renderControl(){
     document.querySelectorAll('[data-count]').forEach(b=>{const active=Number(b.dataset.count)===state.count;b.classList.toggle('is-active',active);b.setAttribute('aria-pressed',String(active));});
     const enabled=state.mode==='quick'||state.picks.length===3;
+    $('targetRound').textContent=`제${recommendationRound()}회`;
     const btn=$('generateBtn');btn.disabled=!enabled;btn.innerHTML=enabled?`${state.count}세트 생성하기 <span aria-hidden="true">→</span>`:'카드 3장을 먼저 선택해 주세요 <span aria-hidden="true">→</span>';
   }
   function colorClass(n){return n<=10?'y':n<=20?'b':n<=30?'r':n<=40?'k':'g';}
@@ -198,8 +236,8 @@
     if(!state.results.length)return;
     const mode=state.generation?.mode||state.mode;
     const extra=mode==='tarot' ? '카드의 상징을 반영한 통계적 선택 규칙을 사용했어요.' : '통계나 카드 조건 없이 균등 무작위로 골랐어요.';
-    $('resultSub').textContent=`${state.results.length}세트 · ${extra}`;
-    $('numbersList').innerHTML=state.results.map((numbers,i)=>`<div class="number-set"><div class="number-topline"><strong>SET ${String(i+1).padStart(2,'0')}</strong><small>${mode==='quick'?'UNIFORM RANDOM':'TAROT RECIPE'}</small></div><div class="ball-row">${numbers.map(n=>`<span class="ball ${colorClass(n)}" aria-label="${n}번">${n}</span>`).join('')}</div></div>`).join('');
+    $('resultSub').textContent=`제${state.generation?.targetRound ?? recommendationRound()}회 추천 · ${state.results.length}세트 · ${extra}`;
+    $('numbersList').innerHTML=state.results.map((numbers,i)=>`<div class="number-set"><div class="number-topline"><strong>SET ${String(i+1).padStart(2,'0')}</strong><small>${mode==='quick'?'UNIFORM RANDOM':'TAROT RECIPE'}</small></div><div class="ball-row">${numbers.map(n=>`<span class="ball ${colorClass(n)}" aria-label="${n}번">${n}</span>`).join('')}</div>${historicalBadge(numbers)}</div>`).join('');
     $('resultFlags').innerHTML=mode==='tarot'?`<strong>적용된 규칙:</strong> ${safe(seeds[state.picks[0].seed].label)} · ${safe(flows[state.picks[1].flow].label)} · ${safe(shapes[state.picks[2].shape].label)}<br>통계 스냅샷: ${safe(statsVersion)}`:`<strong>적용된 규칙:</strong> 균등 무작위 · 조합 내 중복 없음 · 동일 요청 내 세트 중복 방지`;
     $('readingTeaser').classList.toggle('hidden',mode!=='tarot');
     renderBlogLinks();
@@ -235,7 +273,7 @@
   function saveCurrent(){
     if(!state.results.length)return;
     try{
-      const items=getSaved();items.unshift({id:Date.now().toString(36)+'-'+randomInt(999999),date:new Date().toISOString(),mode:state.generation.mode,cardIds:state.generation.cardIds,sets:state.results,statsVersion});
+      const items=getSaved();items.unshift({id:Date.now().toString(36)+'-'+randomInt(999999),date:new Date().toISOString(),mode:state.generation.mode,cardIds:state.generation.cardIds,sets:state.results,statsVersion,targetRound:state.generation.targetRound});
       putSaved(items.slice(0,config.savedLimit||30));showToast('이 기기에 저장했어요.');try{adapters.onSaved(items[0]);}catch(_){}
     }catch{showToast('저장할 수 없는 브라우저 환경입니다. 번호를 복사해 주세요.');}
   }
@@ -247,7 +285,7 @@
       '<button class="delete-history" id="clearHistory" type="button">저장 목록 모두 삭제</button>';
     openModal('내 저장 목록',html);
   }
-  function resultText(){const title=state.generation.mode==='quick'?'완전 무작위 로또번호':'타로로 만든 로또번호';const cardsLine=state.generation.mode==='tarot'?`선택한 카드: ${state.picks.map(c=>c.name).join(' · ')}\n`:'';return `${title}\n${cardsLine}${state.results.map((nums,i)=>`${i+1}세트: ${nums.join(', ')}`).join('\n')}\n\n모든 조합의 1등 당첨 확률은 같습니다.`;}
+  function resultText(){const title=`제${state.generation.targetRound}회 추천 · `+(state.generation.mode==='quick'?'완전 무작위 로또번호':'타로로 만든 로또번호');const cardsLine=state.generation.mode==='tarot'?`선택한 카드: ${state.picks.map(c=>c.name).join(' · ')}\n`:'';return `${title}\n${cardsLine}${state.results.map((nums,i)=>`${i+1}세트: ${nums.join(', ')}`).join('\n')}\n\n모든 조합의 1등 당첨 확률은 같습니다.`;}
   async function copyText(text){
     try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);return true;}}catch(_){}
     const area=document.createElement('textarea');area.value=text;area.style.position='fixed';area.style.left='-9999px';document.body.appendChild(area);area.select();let ok=false;try{ok=document.execCommand('copy');}catch(_){}area.remove();return ok;
@@ -264,7 +302,7 @@
     const bg=ctx.createLinearGradient(0,0,1080,1920);bg.addColorStop(0,'#152833');bg.addColorStop(1,'#253b41');ctx.fillStyle=bg;ctx.fillRect(0,0,1080,1920);
     ctx.strokeStyle='rgba(222,193,141,.24)';ctx.lineWidth=2;for(const r of [320,440,560]){ctx.beginPath();ctx.arc(1010,100,r,0,2*Math.PI);ctx.stroke();}
     ctx.fillStyle='#dfc18c';ctx.font='600 35px Georgia, serif';ctx.fillText('✧  ARCANA LOTTO',85,120);
-    ctx.fillStyle='#fff7e6';ctx.font='700 71px sans-serif';ctx.fillText('나만의 번호 조합',82,240);
+    ctx.fillStyle='#fff7e6';ctx.font='700 71px sans-serif';ctx.fillText(`제${state.generation.targetRound}회 추천 번호`,82,240);
     ctx.fillStyle='#c4c9c1';ctx.font='30px sans-serif';ctx.fillText(state.generation.mode==='tarot'?state.picks.map(c=>c.name).join('  ·  '):'완전 무작위',87,310);
     const rows=state.results.length;const yStart=400;const rowH=Math.min(185,Math.floor(1250/rows));
     for(let i=0;i<rows;i++){
@@ -289,7 +327,7 @@
     const picked=[...state.picks];const sets=generateSets(state.mode,picked,state.count);
     if(!sets.length){showToast('현재 조건으로 번호를 만들 수 없었습니다. 다시 시도해 주세요.');return;}
     state.results=sets;
-    state.generation={mode:state.mode,cardIds:state.mode==='tarot'?picked.map(c=>c.id):[],count:state.count,date:new Date().toISOString(),statsVersion};
+    state.generation={mode:state.mode,cardIds:state.mode==='tarot'?picked.map(c=>c.id):[],count:state.count,date:new Date().toISOString(),statsVersion,targetRound:recommendationRound()};
     renderResults();
     if(sets.length<state.count)showToast(`${sets.length}세트만 생성했습니다. 조건에 맞는 추가 조합을 찾지 못했습니다.`);
     try{adapters.onGenerated({sets,mode:state.mode,cardIds:state.generation.cardIds,statsVersion});}catch(_){}
@@ -332,7 +370,10 @@
       return generateSets('tarot',ids.map(id=>cards[id]),count);
     },
     installAdapters:(next={})=>{if(typeof next.onGenerated==='function')adapters.onGenerated=next.onGenerated;if(typeof next.onSaved==='function')adapters.onSaved=next.onSaved;},
-    getStatistics:()=>({version:statsVersion,lastRound:stats.lastRound,drawCount:stats.drawCount})
+    getStatistics:()=>({version:statsVersion,lastRound:stats.lastRound,drawCount:stats.drawCount}),
+    getRecommendationRound:(whenMs)=>recommendationRound(whenMs),
+    checkPastWinner:lookupPreviousWinner,
+    getHistoryCoverage:()=>({available:historyAvailable,fromRound:historyAvailable?previousWinners.fromRound:null,toRound:historyAvailable?previousWinners.toRound:null,drawCount:historyAvailable?previousWinners.drawCount:0})
   };
   reseed();
 })();
