@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#171e29">
+  <meta name="description" content="타로카드 세 장을 뽑고 나만의 로또번호 생성 규칙을 완성하는 즐거운 체험. 당첨 확률을 예측하거나 높이지 않습니다.">
+  <meta property="og:title" content="ARCANA LOTTO — 타로로 만드는 나만의 번호">
+  <meta property="og:description" content="카드 3장으로 번호 생성전략을 완성하는 작은 즐거움.">
+  <title>ARCANA LOTTO | 타로로 만드는 나만의 번호</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app-layout">
+  <main id="app" class="app-shell" aria-label="타로 로또번호 생성기">
+    <header class="app-header">
+      <div class="brand-block">
+        <span class="brand-star" aria-hidden="true">✧</span>
+        <div class="brand-text"><strong>ARCANA<span>LOTTO</span></strong><small>THE NUMBER RITUAL</small></div>
+      </div>
+      <button id="infoBtn" class="round-icon" type="button" aria-label="서비스 안내">ⓘ</button>
+    </header>
+
+    <section id="hero" class="hero">
+      <div class="hero-orbit" aria-hidden="true"><span>✦</span><i></i></div>
+      <span class="eyebrow">YOUR CARDS, YOUR NUMBERS</span>
+      <h1>오늘의 카드로<br><em>나만의 숫자</em>를.</h1>
+      <p>타로카드 세 장이 특별한 번호 생성의<br>방향을 만들어 줍니다.</p>
+    </section>
+
+    <nav class="mode-tabs" aria-label="번호 생성 방식">
+      <button class="mode-tab is-active" type="button" data-mode="tarot" aria-pressed="true">✦ 타로로 만들기</button>
+      <button class="mode-tab" type="button" data-mode="quick" aria-pressed="false">⚡ 빠른 무작위</button>
+    </nav>
+
+    <section id="tarotPanel" class="flow-panel" aria-label="타로카드 선택">
+      <div class="section-heading">
+        <div><span class="mini-kicker">STEP <span id="stepNum">01</span> / 03</span><h2 id="stepHeading">첫 번째 카드를 선택하세요</h2></div>
+        <button id="reshuffleBtn" class="text-action" type="button">↻ 새로 섞기</button>
+      </div>
+      <p id="stepDesc" class="instruction">첫 카드는 번호 후보의 성향을 결정합니다.</p>
+
+      <div id="chosenCards" class="chosen-cards" aria-live="polite">
+        <div class="chosen-slot"><span class="slot-n">01</span><span>시작</span><small>번호의 성향</small></div>
+        <div class="chosen-slot"><span class="slot-n">02</span><span>흐름</span><small>선택 방식</small></div>
+        <div class="chosen-slot"><span class="slot-n">03</span><span>완성</span><small>조합의 형태</small></div>
+      </div>
+      <div id="deckArea" class="deck-area">
+        <div class="deck-head"><span>마음이 가는 카드를 골라보세요</span><span id="deckRemain">22장 중 선택</span></div>
+        <div id="deckGrid" class="deck-grid" aria-label="뒤집힌 타로카드 여섯 장"></div>
+      </div>
+      <div id="strategyReveal" class="strategy-reveal hidden" aria-live="polite"></div>
+    </section>
+
+    <section id="quickPanel" class="quick-panel hidden" aria-label="완전 무작위 생성">
+      <div class="quick-icon" aria-hidden="true">✳</div>
+      <h2>오직 무작위로.</h2>
+      <p>1부터 45까지 모든 숫자를 동일한 기준으로 선택합니다.<br>카드나 통계 가중치를 적용하지 않아요.</p>
+    </section>
+
+    <section id="controls" class="controls">
+      <div class="count-header"><h2>몇 세트를 만들까요?</h2><span>한 세트에 번호 6개</span></div>
+      <div id="countPicker" class="count-picker" role="group" aria-label="생성 세트 수">
+        <button type="button" data-count="1">1세트</button>
+        <button type="button" data-count="3">3세트</button>
+        <button type="button" data-count="5" class="is-active" aria-pressed="true">5세트</button>
+        <button type="button" data-count="10">10세트</button>
+      </div>
+      <button id="generateBtn" class="primary-btn" type="button" disabled>카드 3장을 먼저 선택해 주세요 <span aria-hidden="true">→</span></button>
+    </section>
+
+    <section id="results" class="results hidden" aria-live="polite" aria-label="생성된 로또 번호">
+      <div class="result-top"><span class="mini-kicker">YOUR NUMBER SETS</span><button id="redoBtn" class="text-action" type="button">↻ 같은 규칙으로 다시</button></div>
+      <h2>번호가 완성됐어요<span class="gold-dot">.</span></h2>
+      <p id="resultSub" class="result-sub"></p>
+      <div id="numbersList" class="numbers-list"></div>
+      <div id="resultFlags" class="result-flags"></div>
+      <div class="result-actions">
+        <button id="copyBtn" class="secondary-btn" type="button">번호 복사</button>
+        <button id="saveBtn" class="secondary-btn" type="button">내 기기에 저장</button>
+        <button id="shareBtn" class="secondary-btn" type="button">공유하기</button>
+        <button id="imageBtn" class="secondary-btn" type="button">이미지로 저장</button>
+      </div>
+      <section id="readingTeaser" class="reading-teaser hidden">
+        <span>BEYOND THE NUMBERS</span>
+        <h3>카드에는 다른 이야기도 있어요.</h3>
+        <p>뽑은 세 장을 오늘의 메시지로도 읽어볼까요?</p>
+        <button id="readingBtn" class="reading-btn" type="button">내 카드 이야기 보기 <span aria-hidden="true">↗</span></button>
+      </section>
+      <div id="blogLinks" class="blog-links hidden"></div>
+    </section>
+
+    <section class="footer-tools">
+      <button id="historyBtn" type="button">▤ 내 저장 목록 <span id="historyCount">0</span></button>
+      <span>통계 데이터: 1~<span id="statRound">1247</span>회 · 보너스 제외</span>
+    </section>
+    <footer class="site-foot"><p>카드와 통계는 숫자를 만드는 방식에만 영향을 줍니다.<br>모든 로또 6/45 조합의 1등 당첨 확률은 동일합니다.</p><small>FOR ENTERTAINMENT ONLY · NO PURCHASE REQUIRED</small></footer>
+  </main>
+
+  <aside class="desktop-aside" aria-label="서비스 소개">
+    <span class="aside-badge">A LITTLE RITUAL OF CHANCE</span>
+    <div class="aside-art" aria-hidden="true"><div class="aside-card back"></div><div class="aside-card middle">✧</div><div class="aside-card top">☾</div></div>
+    <h2>운을 예측하지 않습니다.<br><em>선택의 순간을</em><br>즐겁게 만듭니다.</h2>
+    <p>세 장의 카드가 후보군, 선택 방식, 조합 형태를 정합니다. 같은 카드로도 새로운 번호를 만나보세요.</p>
+    <div class="aside-rule"><span>01</span> PICK THREE CARDS</div>
+    <div class="aside-rule"><span>02</span> BUILD YOUR RECIPE</div>
+    <div class="aside-rule"><span>03</span> REVEAL SIX NUMBERS</div>
+    <small>ARCANA LOTTO · STATIC WEB APP v1.0</small>
+  </aside>
+</div>
+
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-backdrop" data-close="true"></div>
+  <section class="modal-box">
+    <div class="modal-head"><h2 id="modalTitle">안내</h2><button id="closeModal" class="round-icon" type="button" aria-label="닫기">×</button></div>
+    <div id="modalContent" class="modal-content"></div>
+  </section>
+</div>
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+<script src="stats.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
